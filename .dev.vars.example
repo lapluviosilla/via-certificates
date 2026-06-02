@@ -1,0 +1,4 @@
+# Local Cloudflare Pages dev secrets (used by `wrangler pages dev`).
+# Copy to `.dev.vars` and set real values. One password per endpoint.
+GATE_ROOT="change-me-root"
+GATE_CDMX="change-me-cdmx"
