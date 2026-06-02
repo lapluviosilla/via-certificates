@@ -9,6 +9,9 @@ import {
   CX,
   logoBox,
   FontKey,
+  SignerSlot,
+  firstSignerSlot,
+  SECOND_SIGNER_SLOT,
   layoutArch,
   resolveContent,
 } from "./certificate";
@@ -150,21 +153,27 @@ function drawCertificate(
     doc.text(text, CX, y, { align: "center", baseline: "alphabetic" });
   }
 
-  // Signature image (first signer, from the team preset).
-  if (signature) {
-    doc.addImage(signature, "PNG", SIGN.image.x, SIGN.image.y, SIGN.image.w, SIGN.image.h, `sig:${data.signature}`, "FAST");
-  }
-
-  // Signature labels.
+  // Signature blocks: rule + (first only) image + name/role.
   const label = (text: string, x: number, y: number, size: number, bold: boolean) => {
     doc.setFont("PTSerifCert", bold ? "bold" : "normal");
     doc.setFontSize(size);
     doc.text(text, x, y, { align: "center", baseline: "alphabetic" });
   };
-  label(content.firstName, SIGN.left.cx, SIGN.left.nameY, SIGN.nameSize, true);
-  label(content.firstRole, SIGN.left.cx, SIGN.left.roleY, SIGN.roleSize, false);
-  label(content.secondName, SIGN.right.cx, SIGN.right.nameY, SIGN.nameSize, true);
-  label(content.secondRole, SIGN.right.cx, SIGN.right.roleY, SIGN.roleSize, false);
+  doc.setDrawColor(SIGN.lineColor.r, SIGN.lineColor.g, SIGN.lineColor.b);
+  doc.setLineWidth(SIGN.lineWidth);
+  const drawBlock = (slot: SignerSlot, name: string, role: string, img: string | null) => {
+    doc.line(slot.lineX1, SIGN.lineY, slot.lineX2, SIGN.lineY);
+    if (img && slot.imageX !== undefined) {
+      doc.addImage(img, "PNG", slot.imageX, SIGN.imageY, SIGN.imageW, SIGN.imageH, `sig:${data.signature}`, "FAST");
+    }
+    label(name, slot.cx, SIGN.nameY, SIGN.nameSize, true);
+    label(role, slot.cx, SIGN.roleY, SIGN.roleSize, false);
+  };
+
+  drawBlock(firstSignerSlot(!!data.singleSigner), content.firstName, content.firstRole, signature);
+  if (!data.singleSigner) {
+    drawBlock(SECOND_SIGNER_SLOT, content.secondName, content.secondRole, null);
+  }
 }
 
 function createDoc(): JsPDF {

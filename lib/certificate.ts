@@ -38,6 +38,7 @@ export interface CertData {
   firstRole?: string; // first signer role line
   secondRole?: string; // co-signer org line
   signature?: string; // first signer's signature image (path under /public)
+  singleSigner?: boolean; // when true, omit the second signer (default: two)
 }
 
 // Font keys map to concrete faces in both renderers.
@@ -190,12 +191,39 @@ export const LINES = {
 };
 
 export const SIGN = {
-  image: { x: 231.5, y: 402.0, w: 147.8, h: 48.0 },
-  left: { cx: 299, nameY: 447, roleY: 462 },
-  right: { cx: 546, nameY: 447, roleY: 462 },
+  imageW: 147.8,
+  imageH: 48.0,
+  imageY: 402.0,
+  nameY: 447,
+  roleY: 462,
   nameSize: 10.8,
   roleSize: 10.8,
+  // Signature rules are drawn by the renderer (removed from the background) so
+  // they adapt to one- vs two-signer layouts. Colour/weight match the original.
+  lineY: 435,
+  lineWidth: 0.6,
+  lineColor: { r: 127, g: 129, b: 109 },
+  lineHex: "#7f816d",
+  lineHalf: 102.65, // half-length of a single signature rule
 };
+
+export interface SignerSlot {
+  cx: number; // centre x for the name/role text
+  lineX1: number;
+  lineX2: number;
+  imageX?: number; // only the first signer carries a signature image
+}
+
+// First signer: centred when single, left when paired (original position).
+export function firstSignerSlot(single: boolean): SignerSlot {
+  if (single) {
+    return { cx: CX, imageX: CX - SIGN.imageW / 2, lineX1: CX - SIGN.lineHalf, lineX2: CX + SIGN.lineHalf };
+  }
+  return { cx: 299, imageX: 231.5, lineX1: 197.6, lineX2: 402.9 };
+}
+
+// Second signer (only rendered when not single) — right-hand position.
+export const SECOND_SIGNER_SLOT: SignerSlot = { cx: 546, lineX1: 439.1, lineX2: 644.7 };
 
 // Brand logo (overlaid per language — ES/EN use different wordmarks, with
 // different aspect ratios). The baked-in logo has been removed from the

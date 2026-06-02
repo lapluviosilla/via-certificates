@@ -26,6 +26,11 @@ signature. To change what's allowed, edit `userPermissions`
 | **Resource name** | e.g. `Explore` — flows into the completion sentence. |
 | **Second signer** | The co-signer on the right-hand signature. |
 
+Two signers is the default; a **Signers: Two / One** toggle drops to a single,
+centred signer (the second signer fields hide and the certificate re-centres).
+The signature rules are drawn by the renderer (not baked into the background) so
+they adapt to either layout.
+
 Under **Advanced options** you can also override the first signer, the first
 signer's role, and the second signer's organisation. Blank fields fall back to
 the per-language defaults.

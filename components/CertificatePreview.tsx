@@ -14,6 +14,8 @@ import {
   ArchGlyph,
   layoutArch,
   resolveContent,
+  firstSignerSlot,
+  SECOND_SIGNER_SLOT,
 } from "@/lib/certificate";
 import { FAMILY_SCRIPT, FAMILY_SERIF, makeMeasurer, ensureFontsLoaded } from "@/lib/fonts";
 
@@ -113,31 +115,39 @@ export default function CertificatePreview({ data }: { data: CertData }) {
       <ScriptLine y={LINES.completion.y} size={LINES.completion.size} text={content.completion} />
       <ScriptLine y={LINES.footer.y} size={LINES.footer.size} text={content.footer} />
 
-      {/* Signature image (first signer, from the team preset) */}
-      {data.signature && (
-        <image
-          href={data.signature}
-          x={SIGN.image.x}
-          y={SIGN.image.y}
-          width={SIGN.image.w}
-          height={SIGN.image.h}
-          preserveAspectRatio="xMidYMid meet"
-        />
-      )}
-
-      {/* Signature labels */}
-      <text x={SIGN.left.cx} y={SIGN.left.nameY} fontFamily={FAMILY_SERIF} fontWeight={700} fontSize={SIGN.nameSize} fill={INK_HEX} textAnchor="middle">
-        {content.firstName}
-      </text>
-      <text x={SIGN.left.cx} y={SIGN.left.roleY} fontFamily={FAMILY_SERIF} fontWeight={400} fontSize={SIGN.roleSize} fill={INK_HEX} textAnchor="middle">
-        {content.firstRole}
-      </text>
-      <text x={SIGN.right.cx} y={SIGN.right.nameY} fontFamily={FAMILY_SERIF} fontWeight={700} fontSize={SIGN.nameSize} fill={INK_HEX} textAnchor="middle">
-        {content.secondName}
-      </text>
-      <text x={SIGN.right.cx} y={SIGN.right.roleY} fontFamily={FAMILY_SERIF} fontWeight={400} fontSize={SIGN.roleSize} fill={INK_HEX} textAnchor="middle">
-        {content.secondRole}
-      </text>
+      {/* Signature blocks (drawn rule + image + name/role) */}
+      {(() => {
+        const first = firstSignerSlot(!!data.singleSigner);
+        const Block = ({ slot, name, role, img }: { slot: typeof first; name: string; role: string; img?: string }) => (
+          <g>
+            <line
+              x1={slot.lineX1}
+              y1={SIGN.lineY}
+              x2={slot.lineX2}
+              y2={SIGN.lineY}
+              stroke={SIGN.lineHex}
+              strokeWidth={SIGN.lineWidth}
+            />
+            {img && slot.imageX !== undefined && (
+              <image href={img} x={slot.imageX} y={SIGN.imageY} width={SIGN.imageW} height={SIGN.imageH} preserveAspectRatio="xMidYMid meet" />
+            )}
+            <text x={slot.cx} y={SIGN.nameY} fontFamily={FAMILY_SERIF} fontWeight={700} fontSize={SIGN.nameSize} fill={INK_HEX} textAnchor="middle">
+              {name}
+            </text>
+            <text x={slot.cx} y={SIGN.roleY} fontFamily={FAMILY_SERIF} fontWeight={400} fontSize={SIGN.roleSize} fill={INK_HEX} textAnchor="middle">
+              {role}
+            </text>
+          </g>
+        );
+        return (
+          <>
+            <Block slot={first} name={content.firstName} role={content.firstRole} img={data.signature} />
+            {!data.singleSigner && (
+              <Block slot={SECOND_SIGNER_SLOT} name={content.secondName} role={content.secondRole} />
+            )}
+          </>
+        );
+      })()}
     </svg>
   );
 }

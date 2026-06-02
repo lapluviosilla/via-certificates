@@ -23,6 +23,9 @@ const UI = {
     resource: "Nombre del recurso",
     secondName: "Segundo firmante",
     secondRole: "Organización del segundo firmante",
+    signers: "Firmantes",
+    twoSigners: "Dos",
+    oneSigner: "Uno",
     signer: "Firma de",
     firstName: "Primer firmante",
     firstRole: "Cargo / organización del primer firmante",
@@ -49,6 +52,9 @@ const UI = {
     resource: "Resource name",
     secondName: "Second signer",
     secondRole: "Second signer organisation",
+    signers: "Signers",
+    twoSigners: "Two",
+    oneSigner: "One",
     signer: "Signed by",
     firstName: "First signer",
     firstRole: "First signer role / organisation",
@@ -85,6 +91,7 @@ export default function CertificateApp({ team }: { team: Team }) {
   });
   const [mode, setMode] = useState<Mode>("single");
   const [namesText, setNamesText] = useState("");
+  const [singleSigner, setSingleSigner] = useState(false); // two signers by default
   const [busy, setBusy] = useState(false);
 
   // Free-form first signer (root URL only — `team.editable`). The signature is
@@ -142,8 +149,9 @@ export default function CertificateApp({ team }: { team: Team }) {
       firstName: editable ? customName : team.firstName,
       firstRole: editable ? customRole : team.firstRole[form.lang],
       signature: editable ? customSig : team.signature,
+      singleSigner,
     }),
-    [form, team, editable, customName, customRole, customSig],
+    [form, team, editable, customName, customRole, customSig, singleSigner],
   );
   const previewData: CertData = { ...baseData, name: previewName };
 
@@ -251,18 +259,34 @@ export default function CertificateApp({ team }: { team: Team }) {
         </div>
 
         <div className="field">
-          <label>{t.secondName}</label>
-          <input
-            value={form.secondName}
-            placeholder={d.secondName}
-            onChange={(e) => set({ secondName: e.target.value })}
-          />
+          <label>{t.signers}</label>
+          <div className="lang-row">
+            <button type="button" aria-pressed={!singleSigner} onClick={() => setSingleSigner(false)}>
+              {t.twoSigners}
+            </button>
+            <button type="button" aria-pressed={singleSigner} onClick={() => setSingleSigner(true)}>
+              {t.oneSigner}
+            </button>
+          </div>
         </div>
 
-        <div className="field">
-          <label>{t.secondRole}</label>
-          <input value={form.secondRole} placeholder={d.secondRole} onChange={(e) => set({ secondRole: e.target.value })} />
-        </div>
+        {!singleSigner && (
+          <>
+            <div className="field">
+              <label>{t.secondName}</label>
+              <input
+                value={form.secondName}
+                placeholder={d.secondName}
+                onChange={(e) => set({ secondName: e.target.value })}
+              />
+            </div>
+
+            <div className="field">
+              <label>{t.secondRole}</label>
+              <input value={form.secondRole} placeholder={d.secondRole} onChange={(e) => set({ secondRole: e.target.value })} />
+            </div>
+          </>
+        )}
 
         {editable ? (
           /* Root URL: first signer is filled in by the user (name, role, image). */
