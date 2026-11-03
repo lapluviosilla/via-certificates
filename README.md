@@ -78,11 +78,20 @@ can open the tool at all.)
 
 ## Languages
 
-Spanish (`es`) and English (`en`) ship today. To add another language, add an
-entry to `STRINGS` and `MONTHS` in [`lib/certificate.ts`](lib/certificate.ts)
-and to `LANGUAGES`, plus a `UI` block in [`app/page.tsx`](app/page.tsx). The
-arched title, body lines, signature roles and footer are all language-driven, so
-no layout changes are needed.
+Spanish (`es`), English (`en`) and Brazilian Portuguese (`pt`) ship today. To add
+another language:
+
+1. Add the code to the `Lang` union and to `LANGUAGES`, `MONTHS`, `STRINGS` and
+   `LOGO_ASPECT` in [`lib/certificate.ts`](lib/certificate.ts) (TypeScript's
+   `Record<Lang, …>` types will flag everything you still need to fill in).
+2. Add a `UI` block in [`components/CertificateApp.tsx`](components/CertificateApp.tsx)
+   and a `firstRole` entry per team in [`lib/teams.ts`](lib/teams.ts).
+3. Add the matching brand logo at `public/assets/logo-<lang>.png` (Portuguese
+   reuses the accentless "via" wordmark, like English).
+
+The arched title, body lines, signature roles and footer are all language-driven,
+and both fonts cover Latin-Extended accents (á, ã, ç, õ, é…), so no layout
+changes are needed.
 
 ## How the original is reproduced
 

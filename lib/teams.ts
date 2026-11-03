@@ -30,7 +30,7 @@ export const CUSTOM_TEAM: Team = {
   slug: "",
   label: "Personalizado",
   firstName: "",
-  firstRole: { es: "", en: "" },
+  firstRole: { es: "", en: "", pt: "" },
   signature: undefined,
   editable: true,
 };
@@ -43,6 +43,7 @@ export const TEAMS: Record<string, Team> = {
     firstRole: {
       es: "Líder del equipo Vía en CDMX",
       en: "Vía Team Leader, Mexico City",
+      pt: "Líder da equipe Vía na Cidade do México",
     },
     signature: "/assets/signature.png",
   },

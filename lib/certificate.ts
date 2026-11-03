@@ -15,11 +15,12 @@ export const CX = PAGE.w / 2; // 421.125 — horizontal centre line
 export const INK = { r: 0, g: 56, b: 57 } as const;
 export const INK_HEX = "#003839";
 
-export type Lang = "es" | "en";
+export type Lang = "es" | "en" | "pt";
 
 export const LANGUAGES: { code: Lang; label: string }[] = [
   { code: "es", label: "Español" },
   { code: "en", label: "English" },
+  { code: "pt", label: "Português" },
 ];
 
 // ---------------------------------------------------------------------------
@@ -33,16 +34,31 @@ export interface CertData {
   date: string; // ISO yyyy-mm-dd
   resource: string; // e.g. "Explore"
   secondName: string; // co-signer (second signature)
+  // Which visual design to render. Maps to a Design in lib/designs.ts (template +
+  // banner + accent). Absent -> the original landscape "reconocimiento" design.
+  design?: string;
+  // Location line (Estudios design only, e.g. "Lima Perú,"). Falls back to the
+  // language default when blank.
+  location?: string;
   // Optional / advanced — fall back to language defaults when blank.
   firstName?: string; // first signer (default "Paul Strong")
   firstRole?: string; // first signer role line
   secondRole?: string; // co-signer org line
   signature?: string; // first signer's signature image (path under /public)
+  secondSignature?: string; // second signer's signature image (optional)
   singleSigner?: boolean; // when true, omit the second signer (default: two)
 }
 
 // Font keys map to concrete faces in both renderers.
-export type FontKey = "serifBold" | "serifItalic" | "serifRegular" | "script";
+export type FontKey =
+  | "serifBold"
+  | "serifItalic"
+  | "serifRegular"
+  | "script"
+  // Estudios template faces:
+  | "sansBold" // Work Sans Bold — title + recipient name
+  | "mono" // IBM Plex Mono Medium — labels, date, body, signer
+  | "monoItalic"; // IBM Plex Mono Medium Italic — the verse
 
 interface TitleSegment {
   text: string;
@@ -93,6 +109,20 @@ const MONTHS: Record<Lang, string[]> = {
     "November",
     "December",
   ],
+  pt: [
+    "Janeiro",
+    "Fevereiro",
+    "Março",
+    "Abril",
+    "Maio",
+    "Junho",
+    "Julho",
+    "Agosto",
+    "Setembro",
+    "Outubro",
+    "Novembro",
+    "Dezembro",
+  ],
 };
 
 export const STRINGS: Record<Lang, Strings> = {
@@ -129,6 +159,24 @@ export const STRINGS: Record<Lang, Strings> = {
       firstRole: "Vía Team Leader, Mexico City",
       secondName: "Mobilizer Name",
       secondRole: "Church Name",
+      resource: "Explore",
+    },
+  },
+  pt: {
+    title: [
+      { text: "CERTIFICADO", font: "serifBold" },
+      { text: " de ", font: "serifItalic" },
+      { text: "RECONHECIMENTO", font: "serifBold" },
+    ],
+    intro: "Este certificado é concedido a",
+    dateLine: (d) => `Em ${d.day} de ${MONTHS.pt[d.month]} de ${d.year}`,
+    completion: (r) => `por ter concluído o estudo ${r}`,
+    footer: "Alcançando as nações através das nações",
+    defaults: {
+      firstName: "Paul Strong,",
+      firstRole: "Líder da equipe Vía na Cidade do México",
+      secondName: "Nome do mobilizador(a)",
+      secondRole: "Nome da igreja",
       resource: "Explore",
     },
   },
@@ -223,7 +271,7 @@ export function firstSignerSlot(single: boolean): SignerSlot {
 }
 
 // Second signer (only rendered when not single) — right-hand position.
-export const SECOND_SIGNER_SLOT: SignerSlot = { cx: 546, lineX1: 439.1, lineX2: 644.7 };
+export const SECOND_SIGNER_SLOT: SignerSlot = { cx: 546, lineX1: 439.1, lineX2: 644.7, imageX: 546 - SIGN.imageW / 2 };
 
 // Brand logo (overlaid per language — ES/EN use different wordmarks, with
 // different aspect ratios). The baked-in logo has been removed from the
@@ -236,6 +284,7 @@ export const LOGO = { cx: 419, y: 80.2, h: 24.7 };
 const LOGO_ASPECT: Record<Lang, number> = {
   es: 232.18 / 72.4, // "vía"
   en: 36 / 12.8, // "via"
+  pt: 36 / 12.8, // "via" (no accent in Portuguese — same wordmark as English)
 };
 
 export function logoSrc(lang: Lang): string {
@@ -300,4 +349,184 @@ export function layoutArch(segments: TitleSegment[], measure: MeasureFn): ArchGl
     cursor += g.w;
   }
   return out;
+}
+
+// ===========================================================================
+// ESTUDIOS template — "Serie del Cristiano Global" / "CERTIFICADO DE ESTUDIOS".
+//
+// A4 *portrait*. All variable text is live (so EN/PT render and stay
+// translatable); only the top halftone banner is a per-design raster
+// (public/assets/estudios-banner-*.png, cropped from the original Canva PDF).
+// Coordinates in PDF points, measured 1:1 from that PDF. The outer frame and
+// accent rules are drawn in each design's accent colour (see lib/designs.ts).
+// ===========================================================================
+
+export const ESTUDIOS_PAGE = { w: 595.5, h: 842.25 } as const;
+export const ECX = ESTUDIOS_PAGE.w / 2; // 297.75 — portrait centre line
+
+export const ESTUDIOS = {
+  // Banner raster: full width, top of page down to where the halftone has
+  // faded to cream (the logo/location/title are drawn on cream below it).
+  banner: { x: 0, y: 0, w: ESTUDIOS_PAGE.w, h: 255 },
+  // Outer frame: thin stroke inset ~22pt, only the top-right corner rounded.
+  // The banner bakes in the top edge + corner; this draws the rest below it.
+  frame: { x0: 22, y0: 22, x1: 573.5, y1: 820, radius: 77, width: 1.4 },
+  // "vía" wordmark, left-aligned on the content margin.
+  logo: { x: 62, y: 271, h: 38 },
+  // Location + date block (mono), left-aligned on the right half.
+  location: { x: 411, y1: 293, y2: 312.5, size: 13, leading: 19.5 },
+  // Two-line title (Work Sans Bold caps), centred.
+  title: { cx: ECX, y1: 390, y2: 433, size: 35 },
+  intro: { cx: ECX, y: 494, size: 11 }, // "Se concede con orgullo a:" (mono)
+  // Accent rules flank the recipient name + sit below the verse.
+  ruleX0: 62,
+  ruleX1: 533,
+  ruleWidth: 1.2,
+  nameRuleTop: 517,
+  nameRuleBottom: 580,
+  name: { cx: ECX, y: 562, size: 46 }, // recipient (Work Sans Bold)
+  completion: { cx: ECX, y: 602, size: 12.5 }, // "Por cumplir…" (mono)
+  resource: { cx: ECX, y: 618, size: 13.5 }, // bold resource name (Work Sans Bold)
+  verse: { cx: ECX, y1: 642, y2: 653, size: 10, leading: 11 }, // 2 lines (mono italic)
+  verseRef: { cx: ECX, y: 664, size: 10 }, // scripture reference (mono italic)
+  verseRule: 677,
+} as const;
+
+// Signature block (portrait). Role sits above the name (matches the PDF).
+export const ESTUDIOS_SIGN = {
+  imageW: 135,
+  imageH: 46,
+  imageY: 702,
+  lineY: 752,
+  lineWidth: 0.8,
+  lineColor: { r: 127, g: 129, b: 109 },
+  lineHex: "#7f816d",
+  roleY: 770,
+  nameY: 786,
+  roleSize: 11,
+  nameSize: 11,
+  lineHalf: 92, // single-signer rule half-length
+  twoHalf: 85, // two-signer rule half-length (narrower columns)
+} as const;
+
+// First signer: centred when single, left column when paired.
+export function estudiosFirstSignerSlot(single: boolean): SignerSlot {
+  if (single) {
+    return {
+      cx: ECX,
+      imageX: ECX - ESTUDIOS_SIGN.imageW / 2,
+      lineX1: ECX - ESTUDIOS_SIGN.lineHalf,
+      lineX2: ECX + ESTUDIOS_SIGN.lineHalf,
+    };
+  }
+  const cx = 180;
+  return {
+    cx,
+    imageX: cx - ESTUDIOS_SIGN.imageW / 2,
+    lineX1: cx - ESTUDIOS_SIGN.twoHalf,
+    lineX2: cx + ESTUDIOS_SIGN.twoHalf,
+  };
+}
+
+export const ESTUDIOS_SECOND_SIGNER_SLOT: SignerSlot = {
+  cx: 416,
+  lineX1: 416 - ESTUDIOS_SIGN.twoHalf,
+  lineX2: 416 + ESTUDIOS_SIGN.twoHalf,
+  imageX: 416 - ESTUDIOS_SIGN.imageW / 2,
+};
+
+// "vía" wordmark box for the Estudios design (left-aligned, fixed height).
+export function estudiosLogoBox(lang: Lang): { x: number; y: number; w: number; h: number } {
+  const h = ESTUDIOS.logo.h;
+  return { x: ESTUDIOS.logo.x, y: ESTUDIOS.logo.y, w: h * LOGO_ASPECT[lang], h };
+}
+
+interface EstudiosStrings {
+  titleLines: [string, string];
+  intro: string;
+  completion: string; // the "por cumplir…" line (resource drawn separately, bold)
+  verse: [string, string]; // two body lines of the scripture
+  verseRef: string; // the reference line
+  dateLine: (d: { day: number; month: number; year: number }) => string;
+  defaults: { location: string };
+}
+
+export const ESTUDIOS_STRINGS: Record<Lang, EstudiosStrings> = {
+  es: {
+    titleLines: ["CERTIFICADO DE", "ESTUDIOS"],
+    intro: "Se concede con orgullo a:",
+    completion: "Por cumplir satisfactoriamente todos los requisitos del estudio",
+    verse: [
+      "Y con tu sangre nos has redimido para Dios,",
+      "de todo linaje y lengua y pueblo y nación\".",
+    ],
+    verseRef: "Apocalipsis 5:9b",
+    dateLine: (d) => `${MONTHS.es[d.month]} ${d.day}, ${d.year}`,
+    defaults: { location: "Lima Perú," },
+  },
+  en: {
+    titleLines: ["CERTIFICATE OF", "STUDIES"],
+    intro: "Proudly awarded to:",
+    completion: "For satisfactorily completing all the requirements of the study",
+    verse: [
+      "\"and with your blood you ransomed people for God",
+      "from every tribe and language and people and nation.\"",
+    ],
+    verseRef: "Revelation 5:9b",
+    dateLine: (d) => `${MONTHS.en[d.month]} ${d.day}, ${d.year}`,
+    defaults: { location: "Lima, Peru," },
+  },
+  pt: {
+    titleLines: ["CERTIFICADO DE", "ESTUDOS"],
+    intro: "Concedido com orgulho a:",
+    completion: "Por cumprir satisfatoriamente todos os requisitos do estudo",
+    verse: [
+      "\"e com o teu sangue compraste para Deus homens",
+      "de toda tribo, língua, povo e nação.\"",
+    ],
+    verseRef: "Apocalipse 5:9b",
+    dateLine: (d) => `${MONTHS.pt[d.month]} ${d.day}, ${d.year}`,
+    defaults: { location: "Lima, Peru," },
+  },
+};
+
+export interface ResolvedEstudios {
+  titleLines: [string, string];
+  intro: string;
+  name: string;
+  completion: string;
+  resource: string;
+  dateLine: string;
+  verse: [string, string];
+  verseRef: string;
+  location: string;
+  firstName: string;
+  firstRole: string;
+  secondName: string;
+  secondRole: string;
+}
+
+// Resolve Estudios content. `resourceText` is the effective resource label,
+// computed by the caller from the selected design (bound name per language, or
+// the user's free-text resource for the general variant).
+export function resolveEstudios(data: CertData, resourceText: string): ResolvedEstudios {
+  const s = ESTUDIOS_STRINGS[data.lang];
+  const d = parseISO(data.date);
+  return {
+    titleLines: s.titleLines,
+    intro: s.intro,
+    name: data.name.trim() || "—",
+    completion: s.completion,
+    resource: (resourceText || "").trim(),
+    dateLine: d ? s.dateLine(d) : "",
+    verse: s.verse,
+    verseRef: s.verseRef,
+    location: (data.location ?? "").trim() || s.defaults.location,
+    // First signer: team preset or custom input (strip a trailing comma — the
+    // name is its own line here, not followed by a role on the same line).
+    firstName: (data.firstName ?? "").trim().replace(/,\s*$/, ""),
+    firstRole: (data.firstRole ?? "").trim(),
+    secondName: data.secondName.trim() || STRINGS[data.lang].defaults.secondName,
+    secondRole: (data.secondRole ?? "").trim() || STRINGS[data.lang].defaults.secondRole,
+  };
 }

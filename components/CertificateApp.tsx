@@ -4,6 +4,16 @@ import { useEffect, useMemo, useState } from "react";
 import CertificatePreview from "@/components/CertificatePreview";
 import { CertData, Lang, LANGUAGES, STRINGS } from "@/lib/certificate";
 import { Team } from "@/lib/teams";
+import {
+  DESIGNS,
+  DEFAULT_DESIGN_ID,
+  getDesign,
+  designResource,
+  RESOURCE_LABELS,
+  RESOURCE_OPTION_KEYS,
+  designIdForResourceOption,
+  resourceOptionForDesign,
+} from "@/lib/designs";
 import { generateBatchPdf, generatePdf, suggestedBatchFilename, suggestedFilename } from "@/lib/pdf";
 
 // Today's date as YYYY-MM-DD in the viewer's local time.
@@ -20,6 +30,10 @@ const UI = {
     sub: "Crea certificados de reconocimiento listos para imprimir.",
     name: "Nombre del participante",
     date: "Fecha",
+    design: "Diseño del certificado",
+    resourceSelect: "Recurso",
+    resourceOther: "Otro recurso",
+    location: "Lugar",
     resource: "Nombre del recurso",
     secondName: "Segundo firmante",
     secondRole: "Organización del segundo firmante",
@@ -30,6 +44,7 @@ const UI = {
     firstName: "Primer firmante",
     firstRole: "Cargo / organización del primer firmante",
     signature: "Firma (imagen)",
+    secondSignature: "Firma del segundo firmante (imagen)",
     signatureHint: "PNG con fondo transparente recomendado.",
     signatureChoose: "Elegir imagen…",
     signatureRemove: "Quitar",
@@ -43,12 +58,17 @@ const UI = {
     downloadMany: (n: number) => `Descargar ${n} certificados`,
     working: "Generando…",
     hint: "Tamaño A4 horizontal · listo para imprimir a 300 ppp.",
+    hintPortrait: "Tamaño A4 vertical · listo para imprimir a 300 ppp.",
   },
   en: {
     heading: "Certificate generator",
     sub: "Create print-ready recognition certificates.",
     name: "Participant name",
     date: "Date",
+    design: "Certificate design",
+    resourceSelect: "Resource",
+    resourceOther: "Other resource",
+    location: "Location",
     resource: "Resource name",
     secondName: "Second signer",
     secondRole: "Second signer organisation",
@@ -59,6 +79,7 @@ const UI = {
     firstName: "First signer",
     firstRole: "First signer role / organisation",
     signature: "Signature (image)",
+    secondSignature: "Second signer signature (image)",
     signatureHint: "A transparent-background PNG works best.",
     signatureChoose: "Choose image…",
     signatureRemove: "Remove",
@@ -72,11 +93,50 @@ const UI = {
     downloadMany: (n: number) => `Download ${n} certificates`,
     working: "Generating…",
     hint: "A4 landscape · print-ready at 300 dpi.",
+    hintPortrait: "A4 portrait · print-ready at 300 dpi.",
+  },
+  pt: {
+    heading: "Gerador de certificados",
+    sub: "Crie certificados de reconhecimento prontos para impressão.",
+    name: "Nome do participante",
+    date: "Data",
+    design: "Design do certificado",
+    resourceSelect: "Recurso",
+    resourceOther: "Outro recurso",
+    location: "Local",
+    resource: "Nome do recurso",
+    secondName: "Segundo signatário",
+    secondRole: "Organização do segundo signatário",
+    signers: "Signatários",
+    twoSigners: "Dois",
+    oneSigner: "Um",
+    signer: "Assinatura de",
+    firstName: "Primeiro signatário",
+    firstRole: "Cargo / organização do primeiro signatário",
+    signature: "Assinatura (imagem)",
+    secondSignature: "Assinatura do segundo signatário (imagem)",
+    signatureHint: "Recomendado um PNG com fundo transparente.",
+    signatureChoose: "Escolher imagem…",
+    signatureRemove: "Remover",
+    modeOne: "Um",
+    modeMany: "Vários",
+    names: "Nomes (um por linha)",
+    namesPlaceholder: "João Silva\nMaria Souza\nPedro Costa",
+    namesHint: (n: number) => `${n} certificado${n === 1 ? "" : "s"} será${n === 1 ? "" : "o"} gerado${n === 1 ? "" : "s"} (PDF de várias páginas).`,
+    previewNote: (n: number) => `Pré-visualização: 1 de ${n}`,
+    download: "Baixar PDF",
+    downloadMany: (n: number) => `Baixar ${n} certificados`,
+    working: "Gerando…",
+    hint: "Tamanho A4 horizontal · pronto para impressão em 300 dpi.",
+    hintPortrait: "Tamanho A4 vertical · pronto para impressão em 300 dpi.",
   },
 } as const;
 
 // Editable-by-user fields only; the first signer comes from the team preset.
-type FormState = Pick<CertData, "lang" | "name" | "date" | "resource" | "secondName" | "secondRole">;
+type FormState = Pick<
+  CertData,
+  "lang" | "name" | "date" | "resource" | "secondName" | "secondRole" | "location"
+>;
 
 type Mode = "single" | "batch";
 
@@ -88,7 +148,9 @@ export default function CertificateApp({ team }: { team: Team }) {
     resource: "Explore",
     secondName: "",
     secondRole: "",
+    location: "",
   });
+  const [designId, setDesignId] = useState<string>(DEFAULT_DESIGN_ID);
   const [mode, setMode] = useState<Mode>("single");
   const [namesText, setNamesText] = useState("");
   const [singleSigner, setSingleSigner] = useState(false); // two signers by default
@@ -100,23 +162,30 @@ export default function CertificateApp({ team }: { team: Team }) {
   const [customName, setCustomName] = useState("");
   const [customRole, setCustomRole] = useState("");
   const [customSig, setCustomSig] = useState<string | undefined>(undefined);
+  // Optional signature image for the second signer (any team).
+  const [secondSig, setSecondSig] = useState<string | undefined>(undefined);
 
   const t = UI[form.lang];
   const set = (patch: Partial<FormState>) => setForm((f) => ({ ...f, ...patch }));
+
+  // Selected design + derived resource behaviour.
+  const design = getDesign(designId);
+  const isEstudios = design.template === "estudios";
+  const boundResource = designResource(design, form.lang); // undefined => free-text resource
+  const resourceSel = resourceOptionForDesign(design);
 
   // Default the date to today on mount (client-side, avoids hydration mismatch).
   useEffect(() => {
     setForm((f) => (f.date ? f : { ...f, date: todayISO() }));
   }, []);
 
-  function onSignatureFile(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file) return;
+  // Read an uploaded image, downscale, and normalise to a PNG data URL (keeps
+  // alpha and keeps the embedded PDF small). Shared by both signature inputs.
+  function readSignature(file: File, onReady: (dataUrl: string) => void) {
     const reader = new FileReader();
     reader.onload = () => {
       const img = new Image();
       img.onload = () => {
-        // Downscale to keep the PDF small; re-encode as PNG to preserve alpha.
         const maxW = 800;
         const scale = Math.min(1, maxW / img.width);
         const w = Math.max(1, Math.round(img.width * scale));
@@ -125,11 +194,21 @@ export default function CertificateApp({ team }: { team: Team }) {
         canvas.width = w;
         canvas.height = h;
         canvas.getContext("2d")!.drawImage(img, 0, 0, w, h);
-        setCustomSig(canvas.toDataURL("image/png"));
+        onReady(canvas.toDataURL("image/png"));
       };
       img.src = reader.result as string;
     };
     reader.readAsDataURL(file);
+  }
+
+  function onSignatureFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (file) readSignature(file, setCustomSig);
+  }
+
+  function onSecondSignatureFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (file) readSignature(file, setSecondSig);
   }
 
   // In batch mode the only thing that varies per certificate is the name —
@@ -146,12 +225,16 @@ export default function CertificateApp({ team }: { team: Team }) {
   const baseData: CertData = useMemo(
     () => ({
       ...form,
+      // Resource-bound designs supply their own name; otherwise use the typed one.
+      resource: boundResource ?? form.resource,
+      design: designId,
       firstName: editable ? customName : team.firstName,
       firstRole: editable ? customRole : team.firstRole[form.lang],
       signature: editable ? customSig : team.signature,
+      secondSignature: secondSig,
       singleSigner,
     }),
-    [form, team, editable, customName, customRole, customSig, singleSigner],
+    [form, team, editable, customName, customRole, customSig, secondSig, singleSigner, designId, boundResource],
   );
   const previewData: CertData = { ...baseData, name: previewName };
 
@@ -204,7 +287,7 @@ export default function CertificateApp({ team }: { team: Team }) {
         <p className="subtitle">{t.sub}</p>
 
         <div className="field">
-          <label>{form.lang === "es" ? "Idioma" : "Language"}</label>
+          <label>{form.lang === "en" ? "Language" : "Idioma"}</label>
           <div className="lang-row">
             {LANGUAGES.map((l) => (
               <button
@@ -217,6 +300,17 @@ export default function CertificateApp({ team }: { team: Team }) {
               </button>
             ))}
           </div>
+        </div>
+
+        <div className="field">
+          <label>{t.design}</label>
+          <select value={designId} onChange={(e) => setDesignId(e.target.value)}>
+            {DESIGNS.map((dsn) => (
+              <option key={dsn.id} value={dsn.id}>
+                {dsn.label[form.lang]}
+              </option>
+            ))}
+          </select>
         </div>
 
         <div className="field">
@@ -253,10 +347,39 @@ export default function CertificateApp({ team }: { team: Team }) {
           <input type="date" value={form.date} onChange={(e) => set({ date: e.target.value })} />
         </div>
 
-        <div className="field">
-          <label>{t.resource}</label>
-          <input value={form.resource} onChange={(e) => set({ resource: e.target.value })} />
-        </div>
+        {isEstudios && (
+          <div className="field">
+            <label>{t.resourceSelect}</label>
+            <select
+              value={resourceSel}
+              onChange={(e) => setDesignId(designIdForResourceOption(e.target.value as typeof resourceSel))}
+            >
+              {RESOURCE_OPTION_KEYS.map((key) => (
+                <option key={key} value={key}>
+                  {key === "other" ? t.resourceOther : RESOURCE_LABELS[key][form.lang]}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
+
+        {!boundResource && (
+          <div className="field">
+            <label>{t.resource}</label>
+            <input value={form.resource} onChange={(e) => set({ resource: e.target.value })} />
+          </div>
+        )}
+
+        {isEstudios && (
+          <div className="field">
+            <label>{t.location}</label>
+            <input
+              value={form.location ?? ""}
+              placeholder={form.lang === "es" ? "Lima Perú," : "Lima, Peru,"}
+              onChange={(e) => set({ location: e.target.value })}
+            />
+          </div>
+        )}
 
         <div className="field">
           <label>{t.signers}</label>
@@ -284,6 +407,21 @@ export default function CertificateApp({ team }: { team: Team }) {
             <div className="field">
               <label>{t.secondRole}</label>
               <input value={form.secondRole} placeholder={d.secondRole} onChange={(e) => set({ secondRole: e.target.value })} />
+            </div>
+
+            <div className="field">
+              <label>{t.secondSignature}</label>
+              <input type="file" accept="image/png,image/jpeg,image/webp" onChange={onSecondSignatureFile} />
+              {secondSig && (
+                <div className="sig-preview">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={secondSig} alt="second signature preview" />
+                  <button type="button" onClick={() => setSecondSig(undefined)}>
+                    {t.signatureRemove}
+                  </button>
+                </div>
+              )}
+              <p className="field-hint">{t.signatureHint}</p>
             </div>
           </>
         )}
@@ -337,7 +475,7 @@ export default function CertificateApp({ team }: { team: Team }) {
         </div>
         <p className="hint">
           {mode === "batch" && batchNames.length > 1 ? `${t.previewNote(batchNames.length)} · ` : ""}
-          {t.hint}
+          {isEstudios ? t.hintPortrait : t.hint}
         </p>
       </section>
     </main>

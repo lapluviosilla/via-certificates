@@ -7,3 +7,6 @@ next-env.d.ts
 
 # Cloudflare Pages local secrets
 .dev.vars
+
+# Wrangler local state / cache
+.wrangler/

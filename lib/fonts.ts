@@ -3,6 +3,9 @@ import type { FontKey, MeasureFn } from "./certificate";
 // CSS family names declared via @font-face in globals.css.
 export const FAMILY_SERIF = "PTSerifCert";
 export const FAMILY_SCRIPT = "PinyonScriptCert";
+// Estudios template families.
+export const FAMILY_SANS = "WorkSansCert"; // Work Sans Bold
+export const FAMILY_MONO = "PlexMonoCert"; // IBM Plex Mono Medium (+ italic)
 
 // Concrete font files (served from /public/fonts) + how to address each face.
 export interface FontFace {
@@ -21,6 +24,10 @@ export const FONT_FACES: FontFace[] = [
   { key: "serifItalic", url: "/fonts/PTSerif-Italic.ttf", family: FAMILY_SERIF, weight: 400, style: "italic", jsName: "PTSerifCert", jsStyle: "italic" },
   { key: "serifRegular", url: "/fonts/PTSerif-Regular.ttf", family: FAMILY_SERIF, weight: 400, style: "normal", jsName: "PTSerifCert", jsStyle: "normal" },
   { key: "script", url: "/fonts/PinyonScript-Regular.ttf", family: FAMILY_SCRIPT, weight: 400, style: "normal", jsName: "PinyonScriptCert", jsStyle: "normal" },
+  // Estudios faces.
+  { key: "sansBold", url: "/fonts/WorkSans-Bold.ttf", family: FAMILY_SANS, weight: 700, style: "normal", jsName: "WorkSansCert", jsStyle: "bold" },
+  { key: "mono", url: "/fonts/IBMPlexMono-Medium.ttf", family: FAMILY_MONO, weight: 500, style: "normal", jsName: "PlexMonoCert", jsStyle: "normal" },
+  { key: "monoItalic", url: "/fonts/IBMPlexMono-MediumItalic.ttf", family: FAMILY_MONO, weight: 500, style: "italic", jsName: "PlexMonoCert", jsStyle: "italic" },
 ];
 
 const FACE_BY_KEY = Object.fromEntries(FONT_FACES.map((f) => [f.key, f])) as Record<FontKey, FontFace>;
@@ -30,7 +37,7 @@ const FACE_BY_KEY = Object.fromEntries(FONT_FACES.map((f) => [f.key, f])) as Rec
 export function cssFont(key: FontKey, px: number): string {
   const f = FACE_BY_KEY[key];
   const style = f.style === "italic" ? "italic " : "";
-  const weight = f.weight === 700 ? "700 " : "";
+  const weight = `${f.weight} `;
   return `${style}${weight}${px}px "${f.family}"`;
 }
 
@@ -50,8 +57,7 @@ export async function ensureFontsLoaded(): Promise<void> {
   await Promise.all(
     FONT_FACES.map((f) => {
       const style = f.style === "italic" ? "italic " : "";
-      const weight = f.weight === 700 ? "700 " : "400 ";
-      return document.fonts.load(`${style}${weight}40px "${f.family}"`);
+      return document.fonts.load(`${style}${f.weight} 40px "${f.family}"`);
     }),
   );
   await document.fonts.ready;
