@@ -12,12 +12,18 @@
 // Notes:
 //   • A zone whose variable is unset/empty is NOT protected (roll out gradually;
 //     keeps `wrangler pages dev` usable without secrets).
-//   • Only page documents (HTML + App Router .txt payloads) are gated. Shared
-//     static assets (/_next, /assets, /fonts) stay public so they load under any
-//     zone's credentials — they contain no participant data.
+//   • Page documents (HTML + App Router .txt payloads) are gated, and so is each
+//     team's locked signature image (/assets/signature-<slug>.png) — it is gated
+//     behind THAT team's password so it is not a public asset anyone can grab.
+//     The browser already holds the password (the visitor entered it to load the
+//     page), so the preview and generated PDF still fetch the signature fine.
+//   • Other shared static assets (/_next, /fonts, and the rest of /assets) stay
+//     public so they load under any zone's credentials — they carry no signature
+//     or participant data.
 //   • The username is ignored; users just enter the password.
 //
-// To add a team: add a zone here AND set its env var in the dashboard.
+// To add a team: add a zone here (gate its page paths AND its
+// /assets/signature-<slug>.png) AND set its env var in the dashboard.
 
 const ZONES = [
   {
@@ -28,7 +34,9 @@ const ZONES = [
   {
     env: "GATE_CDMX",
     realm: "Via Certificates - CDMX",
-    match: (p) => p === "/cdmx" || p.startsWith("/cdmx/"),
+    // Gate the /cdmx pages AND this team's locked signature image, so the
+    // signature is only served to a visitor who has the CDMX password.
+    match: (p) => p === "/cdmx" || p.startsWith("/cdmx/") || p === "/assets/signature-cdmx.png",
   },
 ];
 

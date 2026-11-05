@@ -85,7 +85,7 @@ function EstudiosPreview({
   const SignerBlock = ({ slot, name, role, img }: { slot: SignerSlot; name: string; role: string; img?: string }) => (
     <g>
       {img && slot.imageX !== undefined && (
-        <image href={img} x={slot.imageX} y={ESTUDIOS_SIGN.imageY} width={ESTUDIOS_SIGN.imageW} height={ESTUDIOS_SIGN.imageH} preserveAspectRatio="xMidYMid meet" />
+        <image href={img} x={slot.imageX} y={ESTUDIOS_SIGN.imageY} width={ESTUDIOS_SIGN.imageW} height={ESTUDIOS_SIGN.imageH} preserveAspectRatio="xMidYMid meet" style={{ pointerEvents: "none" }} />
       )}
       <line x1={slot.lineX1} y1={ESTUDIOS_SIGN.lineY} x2={slot.lineX2} y2={ESTUDIOS_SIGN.lineY} stroke={ESTUDIOS_SIGN.lineHex} strokeWidth={ESTUDIOS_SIGN.lineWidth} />
       {/* Role on top, name below (matches the PDF). */}
@@ -103,6 +103,7 @@ function EstudiosPreview({
       style={{ display: "block", height: "auto" }}
       role="img"
       aria-label="Certificate preview"
+      onContextMenu={(e) => e.preventDefault()}
     >
       {/* Cream page surface */}
       <rect x={0} y={0} width={ESTUDIOS_PAGE.w} height={ESTUDIOS_PAGE.h} fill="#fffef7" />
@@ -197,6 +198,7 @@ function ReconocimientoPreview({ data }: { data: CertData }) {
       style={{ display: "block", height: "auto" }}
       role="img"
       aria-label="Certificate preview"
+      onContextMenu={(e) => e.preventDefault()}
     >
       <image href={ASSET_BG} x={0} y={0} width={PAGE.w} height={PAGE.h} preserveAspectRatio="none" />
 
@@ -259,7 +261,7 @@ function ReconocimientoPreview({ data }: { data: CertData }) {
               strokeWidth={SIGN.lineWidth}
             />
             {img && slot.imageX !== undefined && (
-              <image href={img} x={slot.imageX} y={SIGN.imageY} width={SIGN.imageW} height={SIGN.imageH} preserveAspectRatio="xMidYMid meet" />
+              <image href={img} x={slot.imageX} y={SIGN.imageY} width={SIGN.imageW} height={SIGN.imageH} preserveAspectRatio="xMidYMid meet" style={{ pointerEvents: "none" }} />
             )}
             <text x={slot.cx} y={SIGN.nameY} fontFamily={FAMILY_SERIF} fontWeight={700} fontSize={SIGN.nameSize} fill={INK_HEX} textAnchor="middle">
               {name}

@@ -109,7 +109,8 @@ independent, so the renderer only overlays:
   a circular arc — the same layout function feeds both the live SVG preview and
   the PDF, so they are pixel-identical;
 - the script body lines and signature labels;
-- the handwritten signature (`public/assets/signature.png`, transparent PNG).
+- the handwritten signature (`public/assets/signature-cdmx.png`, transparent PNG),
+  gated per team by the Worker (see [Securing the pages](#securing-the-pages-password-per-endpoint)).
 
 To change a logo, replace the SVG in `brand/` and re-rasterise to
 `public/assets/logo-<lang>.png` (transparent PNG); update the aspect ratio in
@@ -175,12 +176,21 @@ Behaviour:
   passwords are independent — the root password will not open `/cdmx`.
 - A zone whose variable is **unset is not protected**, so you can roll this out
   gradually. To lock everything, set every `GATE_*`.
-- Only page documents are gated; shared static assets (`/_next`, `/assets`,
-  `/fonts`) stay public so they load under any zone. They contain no participant
-  data, but note the signer's `signature.png` is a public asset — if you need to
-  hide it too, front the whole site with **Cloudflare Access** instead.
-- **Adding a team:** add a zone to `ZONES` in `public/_worker.js` and set its
-  `GATE_<SLUG>` secret.
+- Page documents are gated, and so is each team's locked signature image
+  (`/assets/signature-<slug>.png`) — it is gated behind **that team's** password,
+  so it is not a public asset anyone can download. The browser already holds the
+  password (the visitor entered it to load the page), so the live preview and the
+  generated PDF still fetch the signature with no extra prompt.
+- Other shared static assets (`/_next`, `/fonts`, and the rest of `/assets`) stay
+  public so they load under any zone; they carry no signature or participant data.
+  Note this stops people **without** the password from grabbing the signature — it
+  does not stop someone who has the password and uses the tool, since the signature
+  is, by design, embedded in every certificate PDF they generate (and visible in the
+  preview). To restrict who can reach the tool at all, front the site with
+  **Cloudflare Access**.
+- **Adding a team:** add a zone to `ZONES` in `public/_worker.js` — gate both its
+  page paths and its `/assets/signature-<slug>.png` — and set its `GATE_<SLUG>`
+  secret.
 
 Test locally with the Pages runtime (the Worker doesn't run under `next dev`):
 
