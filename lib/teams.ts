@@ -8,8 +8,14 @@ import { Lang } from "./certificate";
 //
 // Each team locks the FIRST signer (name, role per language, and signature) so
 // the end-user can't change it. To add a field team: copy the template below,
-// drop their signature PNG in /public/assets, and reference it. New slugs are
-// generated as static pages at build time (see app/[team]/page.tsx).
+// drop their signature PNG in /public/assets (named signature-<slug>.png), and
+// reference it. New slugs are generated as static pages at build time (see
+// app/[team]/page.tsx).
+//
+// Keep locked signatures named /assets/signature-<slug>.png: public/_worker.js
+// gates each one behind the same password as that team's page, so the signature
+// is not a public asset anyone can download — it only loads for a visitor who
+// already entered the team's password.
 // ---------------------------------------------------------------------------
 
 export interface Team {
@@ -45,7 +51,7 @@ export const TEAMS: Record<string, Team> = {
       en: "Vía Team Leader, Mexico City",
       pt: "Líder da equipe Vía na Cidade do México",
     },
-    signature: "/assets/signature.png",
+    signature: "/assets/signature-cdmx.png",
   },
 
   // --- Template for another field team (uncomment, fill in, add signature) ---
@@ -57,6 +63,8 @@ export const TEAMS: Record<string, Team> = {
   //     es: "Líder del equipo en Toluca",
   //     en: "Team Leader, Toluca",
   //   },
+  //   // Name it per team as /assets/signature-<slug>.png and gate it in
+  //   // public/_worker.js so only this team's password can fetch it.
   //   signature: "/assets/signature-toluca.png", // drop this file in /public/assets
   // },
 };
